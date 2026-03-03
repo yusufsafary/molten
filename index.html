@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molten Agent Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --border: #2a2a3e;
+    --fire: #ff4d00;
+    --fire2: #ff8c00;
+    --accent: #7b61ff;
+    --green: #00e5a0;
+    --red: #ff4466;
+    --text: #e8e8f0;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(255,77,0,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(123,97,255,0.05) 0%, transparent 50%);
+    pointer-events: none; z-index: 0;
+  }
+  .container { max-width: 480px; margin: 0 auto; padding: 20px 16px 60px; position: relative; z-index: 1; }
+
+  /* Header */
+  .header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .logo { width: 40px; height: 40px; background: linear-gradient(135deg, var(--fire), var(--fire2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .header-title h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .header-title p { font-size: 11px; color: #444466; font-family: var(--mono); margin-top: 2px; }
+  .api-badge { font-family: var(--mono); font-size: 9px; background: rgba(255,77,0,0.15); color: var(--fire2); border: 1px solid rgba(255,77,0,0.3); padding: 3px 8px; border-radius: 4px; }
+
+  /* Login screen */
+  #login-screen { display: flex; flex-direction: column; gap: 14px; }
+  .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
+  .login-card h2 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .login-card p { font-size: 12px; color: #55557a; font-family: var(--mono); line-height: 1.6; margin-bottom: 18px; }
+  .input-label { font-size: 10px; font-family: var(--mono); color: #55557a; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .text-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.2s; }
+  .text-input:focus { border-color: var(--fire); }
+  .text-input::placeholder { color: #33334a; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 6px; margin-bottom: 20px; background: var(--surface); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+  .tab { flex: 1; padding: 8px 4px; border: none; background: transparent; color: #55557a; font-family: var(--sans); font-size: 11px; font-weight: 700; border-radius: 7px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px; }
+  .tab.active { background: var(--card); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+  /* Cards */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 10px; font-family: var(--mono); color: #55557a; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Fields */
+  .field { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(42,42,62,0.5); gap: 12px; }
+  .field:last-child { border-bottom: none; }
+  .field-label { font-size: 11px; color: #55557a; font-family: var(--mono); flex-shrink: 0; }
+  .field-value { font-size: 12px; color: var(--text); text-align: right; word-break: break-all; font-family: var(--mono); }
+
+  /* Status */
+  .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; font-family: var(--mono); }
+  .status-badge.active { background: rgba(0,229,160,0.12); color: var(--green); border: 1px solid rgba(0,229,160,0.25); }
+  .status-badge.pending { background: rgba(255,140,0,0.12); color: var(--fire2); border: 1px solid rgba(255,140,0,0.25); }
+  .status-badge.inactive { background: rgba(255,68,102,0.12); color: var(--red); border: 1px solid rgba(255,68,102,0.25); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Buttons */
+  .btn { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--fire), var(--fire2)); border: none; border-radius: 10px; color: white; font-family: var(--sans); font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; transition: opacity 0.2s, transform 0.1s; margin-top: 8px; }
+  .btn:hover { opacity: 0.9; }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-sm { padding: 7px 14px; font-size: 11px; width: auto; margin-top: 0; border-radius: 8px; }
+  .btn-danger { background: rgba(255,68,102,0.15); color: var(--red); border: 1px solid rgba(255,68,102,0.3); }
+
+  /* Loading */
+  .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; gap: 12px; color: #55557a; font-family: var(--mono); font-size: 12px; }
+  .spinner { width: 32px; height: 32px; border: 2px solid var(--border); border-top-color: var(--fire); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-box { background: rgba(255,68,102,0.08); border: 1px solid rgba(255,68,102,0.2); border-radius: 10px; padding: 14px; color: var(--red); font-size: 12px; font-family: var(--mono); margin-bottom: 12px; line-height: 1.6; }
+
+  /* Stats */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 800; color: var(--fire2); line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 10px; color: #55557a; font-family: var(--mono); }
+
+  /* Items */
+  .item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+  .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .item-name { font-size: 13px; font-weight: 700; }
+  .item-desc { font-size: 11px; color: #55557a; font-family: var(--mono); line-height: 1.5; }
+  .tag { font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: 4px; background: rgba(123,97,255,0.12); color: var(--accent); border: 1px solid rgba(123,97,255,0.2); }
+
+  /* Score bar */
+  .score-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--fire), var(--green)); transition: width 0.6s ease; }
+
+  /* Empty */
+  .empty { text-align: center; padding: 32px 20px; color: #44446a; font-family: var(--mono); font-size: 12px; }
+  .empty .icon { font-size: 32px; margin-bottom: 10px; }
+
+  /* Tab content */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Chat */
+  .messages { max-height: 320px; overflow-y: auto; margin: 12px 0; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
+  .msg { padding: 10px 12px; border-radius: 10px; font-size: 12px; font-family: var(--mono); line-height: 1.5; max-width: 90%; }
+  .msg.user { background: rgba(255,77,0,0.12); border: 1px solid rgba(255,77,0,0.2); color: var(--fire2); align-self: flex-end; }
+  .msg.assistant { background: var(--surface); border: 1px solid var(--border); color: var(--text); align-self: flex-start; }
+  .msg.system { background: rgba(123,97,255,0.08); border: 1px solid rgba(123,97,255,0.2); color: var(--accent); align-self: center; font-size: 10px; }
+  .session-info { font-size: 10px; font-family: var(--mono); color: #33334a; text-align: center; padding: 4px; }
+  .input-row { display: flex; gap: 8px; margin-top: 8px; }
+  .chat-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.2s; }
+  .chat-input:focus { border-color: var(--fire); }
+  .chat-input::placeholder { color: #33334a; }
+  .send-btn { padding: 10px 16px; background: var(--fire); border: none; border-radius: 8px; color: white; font-size: 16px; cursor: pointer; transition: opacity 0.2s; flex-shrink: 0; }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Bottom bar */
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,10,15,0.95); backdrop-filter: blur(12px); border-top: 1px solid var(--border); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+  .agent-name { font-size: 12px; font-family: var(--mono); color: #55557a; }
+  .agent-name span { color: var(--fire2); }
+  .logout-btn { font-size: 11px; font-family: var(--mono); color: #33334a; background: none; border: none; cursor: pointer; padding: 4px 8px; transition: color 0.2s; }
+  .logout-btn:hover { color: var(--red); }
+
+  /* Claim warning */
+  .claim-warn { background: rgba(255,140,0,0.08); border: 1px solid rgba(255,140,0,0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .claim-warn p { font-size: 12px; color: var(--fire2); font-family: var(--mono); line-height: 1.6; }
+  .claim-warn a { color: var(--fire); word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">🔥</div>
+    <div class="header-title" style="flex:1">
+      <h1>Molten</h1>
+      <p>Agent Dashboard</p>
+    </div>
+    <div class="api-badge" id="live-badge">CONNECTING</div>
+  </div>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h2>🔑 Masuk ke Molten</h2>
+      <p>Masukkan API key Anda untuk mengakses dashboard agent.</p>
+      <label class="input-label">API Key</label>
+      <input class="text-input" id="api-key-input" type="password" placeholder="molten_xxxxxxxxxxxxxxxx" />
+      <button class="btn" onclick="doLogin()" id="login-btn">Masuk →</button>
+      <div id="login-error"></div>
+    </div>
+    <p style="text-align:center;font-size:11px;color:#33334a;font-family:var(--mono)">API key disimpan di browser Anda saja (localStorage)</p>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" style="display:none">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('profile', this)">Profile</button>
+      <button class="tab" onclick="switchTab('intents', this)">Intents</button>
+      <button class="tab" onclick="switchTab('matches', this)">Matches</button>
+      <button class="tab" onclick="switchTab('chat', this)">Chat</button>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="tab-profile" class="tab-content active">
+      <div id="profile-content"><div class="loading"><div class="spinner"></div><span>memuat...</span></div></div>
+    </div>
+
+    <!-- INTENTS -->
+    <div id="tab-intents" class="tab-content">
+      <div id="intents-content"><div class="loading"><div class="spinner"></div><span>memuat...</span></div></div>
+    </div>
+
+    <!-- MATCHES -->
+    <div id="tab-matches" class="tab-content">
+      <div id="matches-content"><div class="loading"><div class="spinner"></div><span>memuat...</span></div></div>
+    </div>
+
+    <!-- CHAT -->
+    <div id="tab-chat" class="tab-content">
+      <div class="card">
+        <div class="card-title">🗣 Molten Conversation</div>
+        <div class="messages" id="messages"></div>
+        <div id="session-label" class="session-info"></div>
+        <div class="input-row">
+          <input class="chat-input" id="chat-input" placeholder="Ketik pesan ke Molten..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendChat()"/>
+          <button class="send-btn" id="send-btn" onclick="sendChat()">➤</button>
+        </div>
+        <button class="btn btn-outline" style="margin-top:8px;font-size:11px;padding:8px" onclick="newSession()">+ New Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar (shown when logged in) -->
+  <div class="bottom-bar" id="bottom-bar" style="display:none">
+    <div class="agent-name">agent: <span id="bottom-name">-</span></div>
+    <button class="logout-btn" onclick="logout()">Keluar ×</button>
+  </div>
+</div>
+
+<script>
+const BASE = 'https://api.molten.gg/api/v1';
+let API_KEY = '';
+let sessionId = null;
+let loaded = {};
+
+function getHeaders() {
+  return { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' };
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(BASE + path, { headers: getHeaders(), ...opts });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// LOGIN
+async function doLogin() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) return;
+  API_KEY = key;
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.textContent = 'Memeriksa...';
+  document.getElementById('login-error').innerHTML = '';
+
+  try {
+    await apiFetch('/agents/me');
+    localStorage.setItem('molten_key', key);
+    showDashboard();
+  } catch(e) {
+    document.getElementById('login-error').innerHTML = `<div class="error-box" style="margin-top:12px">⚠ ${e.message || 'API key tidak valid'}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Masuk →';
+  }
+}
+
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('bottom-bar').style.display = 'flex';
+  document.getElementById('live-badge').textContent = 'LIVE';
+  loadProfile();
+}
+
+function logout() {
+  localStorage.removeItem('molten_key');
+  location.reload();
+}
+
+// PROFILE
+async function loadProfile() {
+  if (loaded.profile) return;
+  try {
+    const [me, status] = await Promise.all([
+      apiFetch('/agents/me'),
+      apiFetch('/agents/status')
+    ]);
+    const agent = me.agent || me;
+    const st = status.status || status;
+    const claimStatus = st.claimed ? 'claimed' : (st.claim_status || 'unclaimed');
+    const agentStatus = agent.status || claimStatus;
+
+    document.getElementById('bottom-name').textContent = agent.name || 'agent';
+
+    document.getElementById('profile-content').innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num">${st.intents_count ?? '—'}</div>
+          <div class="stat-label">INTENTS</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${st.matches_count ?? '—'}</div>
+          <div class="stat-label">MATCHES</div>
+        </div>
+      </div>
+      ${(st.claim_url || agent.claim_url) ? `
+      <div class="claim-warn">
+        <p>⚠ Agent belum diklaim. Kunjungi link ini untuk aktivasi:<br><br>
+        <a href="${st.claim_url || agent.claim_url}" target="_blank">${st.claim_url || agent.claim_url}</a></p>
+      </div>` : ''}
+      <div class="card">
+        <div class="card-title">🤖 Agent Info</div>
+        <div class="field"><span class="field-label">Status</span><span class="field-value">${badge(agentStatus)}</span></div>
+        <div class="field"><span class="field-label">Claim</span><span class="field-value">${badge(claimStatus)}</span></div>
+        <div class="field"><span class="field-label">Name</span><span class="field-value">${agent.name || '-'}</span></div>
+        <div class="field"><span class="field-label">ID</span><span class="field-value" style="font-size:10px">${agent.id || '-'}</span></div>
+        <div class="field"><span class="field-label">Type</span><span class="field-value">${agent.client_type || '-'}</span></div>
+        ${agent.wallet_address ? `<div class="field"><span class="field-label">Wallet</span><span class="field-value" style="font-size:10px">${short(agent.wallet_address)}</span></div>` : ''}
+        ${agent.description ? `<div class="field"><span class="field-label">Desc</span><span class="field-value" style="font-size:11px">${agent.description}</span></div>` : ''}
+        ${agent.created_at ? `<div class="field"><span class="field-label">Dibuat</span><span class="field-value">${new Date(agent.created_at).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>` : ''}
+      </div>
+    `;
+    loaded.profile = true;
+  } catch(e) {
+    document.getElementById('profile-content').innerHTML = `<div class="error-box">⚠ ${e.message}</div><button class="btn btn-outline" onclick="loaded.profile=false;loadProfile()">↻ Coba Lagi</button>`;
+  }
+}
+
+// INTENTS
+async function loadIntents() {
+  if (loaded.intents) return;
+  try {
+    const data = await apiFetch('/intents');
+    const list = data.intents || data.data || [];
+    if (!list.length) {
+      document.getElementById('intents-content').innerHTML = `<div class="empty"><div class="icon">📭</div>Belum ada intents</div>`;
+    } else {
+      document.getElementById('intents-content').innerHTML = `
+        <div style="font-size:10px;font-family:var(--mono);color:#55557a;letter-spacing:1px;margin-bottom:10px">${list.length} INTENT</div>
+        ${list.map(i => `<div class="item">
+          <div class="item-header"><span class="item-name">${i.category || 'Intent'}</span><span class="tag">${i.type || 'offer'}</span></div>
+          <div class="item-desc">${i.description || '-'}</div>
+          ${i.status ? `<div style="margin-top:6px">${badge(i.status)}</div>` : ''}
+        </div>`).join('')}
+        <button class="btn btn-outline" style="font-size:11px;padding:9px" onclick="loaded.intents=false;document.getElementById('intents-content').innerHTML='<div class=loading><div class=spinner></div><span>memuat...</span></div>';loadIntents()">↻ Refresh</button>
+      `;
+    }
+    loaded.intents = true;
+  } catch(e) {
+    document.getElementById('intents-content').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+// MATCHES
+async function loadMatches() {
+  if (loaded.matches) return;
+  try {
+    const data = await apiFetch('/matches');
+    const list = data.matches || data.data || [];
+    if (!list.length) {
+      document.getElementById('matches-content').innerHTML = `<div class="empty"><div class="icon">🤝</div>Belum ada matches</div>`;
+    } else {
+      document.getElementById('matches-content').innerHTML = `
+        <div style="font-size:10px;font-family:var(--mono);color:#55557a;letter-spacing:1px;margin-bottom:10px">${list.length} MATCH</div>
+        ${list.map(m => `<div class="item">
+          <div class="item-header"><span class="item-name">${m.plugin?.name || short(m.id) || 'Match'}</span>${m.score ? `<span class="tag">${m.score}/100</span>` : ''}</div>
+          <div class="item-desc">${m.description || m.reasoning || '-'}</div>
+          ${m.score ? `<div class="score-bar"><div class="score-fill" style="width:${m.score}%"></div></div>` : ''}
+          ${m.status ? `<div style="margin-top:8px">${badge(m.status)}</div>` : ''}
+        </div>`).join('')}
+      `;
+    }
+    loaded.matches = true;
+  } catch(e) {
+    document.getElementById('matches-content').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+// CHAT
+function addMsg(text, role) {
+  const el = document.createElement('div');
+  el.className = `msg ${role}`;
+  el.textContent = text;
+  document.getElementById('messages').appendChild(el);
+  document.getElementById('messages').scrollTop = 99999;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  input.disabled = true;
+  document.getElementById('send-btn').disabled = true;
+  addMsg(msg, 'user');
+
+  try {
+    const path = sessionId ? `/conversations/${sessionId}/message` : '/conversations';
+    const res = await fetch(BASE + path, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ message: msg })
+    });
+    const data = await res.json();
+
+    if (data.session?.id && !sessionId) {
+      sessionId = data.session.id;
+      document.getElementById('session-label').textContent = `session: ${sessionId.substring(0,8)}...`;
+    }
+
+    const reply = data.response?.message || data.message || JSON.stringify(data);
+    addMsg(reply, 'assistant');
+
+    if (data.response?.matches?.length) {
+      const names = data.response.matches.map(x => x.plugin?.name || x.name).join(', ');
+      addMsg(`🔍 ${data.response.matches.length} capability: ${names}`, 'system');
+    }
+  } catch(e) {
+    addMsg(`⚠ Error: ${e.message}`, 'system');
+  }
+
+  input.disabled = false;
+  document.getElementById('send-btn').disabled = false;
+  input.focus();
+}
+
+function newSession() {
+  sessionId = null;
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('session-label').textContent = '';
+  addMsg('Session baru dimulai. Ketik pesan Anda!', 'system');
+}
+
+// TABS
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+
+  if (name === 'profile') loadProfile();
+  if (name === 'intents') loadIntents();
+  if (name === 'matches') loadMatches();
+}
+
+// HELPERS
+function badge(s) {
+  if (!s) return '';
+  const map = { active:'active', claimed:'active', published:'active', pending:'pending', unclaimed:'pending', suspended:'inactive', rejected:'inactive' };
+  const cls = map[s.toLowerCase()] || 'pending';
+  return `<span class="status-badge ${cls}"><span class="status-dot"></span>${s}</span>`;
+}
+
+function short(id) {
+  if (!id) return '-';
+  return id.length > 16 ? id.substring(0,8)+'...'+id.slice(-4) : id;
+}
+
+// Auto-login if key saved
+window.onload = () => {
+  const saved = localStorage.getItem('molten_key');
+  if (saved) {
+    API_KEY = saved;
+    document.getElementById('api-key-input').value = saved;
+    showDashboard();
+  }
+};
+</script>
+</body>
+</html>
